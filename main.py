@@ -1,8 +1,18 @@
 from fastapi import FastAPI
-from routes import students
+from fastapi.middleware.cors import CORSMiddleware
+from routes import students, auth
 from database import engine, Base
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(students.router)
+app.include_router(auth.router)
