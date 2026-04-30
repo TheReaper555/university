@@ -1,15 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 import random
-import smtplib
 import os
-from email.message import EmailMessage
 from dotenv import load_dotenv
+import sendgrid
+from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 
 router = APIRouter(prefix="/auth")
-
 otp_store: dict = {}
 
 class EmailRequest(BaseModel):
@@ -24,18 +23,16 @@ def send_otp(request: EmailRequest):
     code = str(random.randint(100000, 999999))
     otp_store[request.email] = code
 
-    msg = EmailMessage()
-    msg["Subject"] = "Tu código OTP - Sistema Universitario"
-    msg["From"] = os.getenv("GMAIL_USER")
-    msg["To"] = request.email
-    msg.set_content(f"Tu código de acceso es: {code}")
+    message = Mail(
+        from_email="santiagojoseu4@gmail.com",
+        to_emails=request.email,
+        subject="Tu código OTP - Sistema Universitario",
+        html_content=f"<p>Tu código de acceso es: <strong>{code}</strong></p>"
+    )
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.login(os.getenv("GMAIL_USER"), os.getenv("GMAIL_APP_PASSWORD"))
-            smtp.send_message(msg)
+        sg = sendgrid.SendGridAPIClient(api_key=os.getenv("SENDGRID_API_KEY"))
+        sg.send(message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar correo: {str(e)}")
 
