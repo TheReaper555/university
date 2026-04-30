@@ -1,16 +1,16 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 import random
-import smtplib
-from email.message import EmailMessage
 import os
+import resend
 from dotenv import load_dotenv
 
 load_dotenv()
 
+resend.api_key = os.getenv("RESEND_API_KEY")
+
 router = APIRouter(prefix="/auth")
 
-# Almacén temporal de OTPs en memoria
 otp_store: dict = {}
 
 class EmailRequest(BaseModel):
@@ -25,18 +25,12 @@ def send_otp(request: EmailRequest):
     code = str(random.randint(100000, 999999))
     otp_store[request.email] = code
 
-    msg = EmailMessage()
-    msg["Subject"] = "Tu código OTP"
-    msg["From"] = os.getenv("GMAIL_USER")
-    msg["To"] = request.email
-    msg.set_content(f"Tu código de acceso es: {code}")
-
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(os.getenv("GMAIL_USER"), os.getenv("GMAIL_APP_PASSWORD"))
-            smtp.send_message(msg)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al enviar correo: {str(e)}")
+    resend.Emails.send({
+        "from": "onboarding@resend.dev",
+        "to": request.email,
+        "subject": "Tu código OTP - Sistema Universitario",
+        "html": f"<p>Tu código de acceso es: <strong>{code}</strong></p>"
+    })
 
     return {"message": "OTP enviado al correo"}
 
