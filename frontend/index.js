@@ -32,7 +32,6 @@ function sendOTP() {
     const errEl = document.getElementById('err-email');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Validación
     if (!email || !emailRegex.test(email)) {
         document.getElementById('input-email').classList.add('error-input');
         errEl.classList.add('show');
@@ -41,34 +40,37 @@ function sendOTP() {
     document.getElementById('input-email').classList.remove('error-input');
     errEl.classList.remove('show');
 
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
     setLoading('btn-send', true, 'Enviando...');
     hideMsg('msg-email');
 
-    fetch(`${API}/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+    emailjs.send("service_jhgvl44", "template_xj53fxo", {
+        to_email: email,
+        otp_code: code
+    }, "smsrAsxMqq3bNDSAJ")
+    .then(() => {
+        return fetch(`${API}/auth/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
     })
-    .then(r => r.json().then(data => ({ ok: r.ok, data })))
-    .then(({ ok, data }) => {
+    .then(() => {
         setLoading('btn-send', false, 'Enviar código OTP');
-        if (ok) {
-            currentEmail = email;
-            document.getElementById('display-email').textContent = email;
-            clearOTPFields();
-            showView('view-otp');
-            startCountdown();
-        } else {
-            showMsg('msg-email', data.detail || 'Error al enviar el correo.', 'error');
-        }
+        currentEmail = email;
+        document.getElementById('display-email').textContent = email;
+        clearOTPFields();
+        showView('view-otp');
+        startCountdown();
     })
-    .catch(() => {
+    .catch((err) => {
         setLoading('btn-send', false, 'Enviar código OTP');
-        showMsg('msg-email', 'No se pudo conectar con el servidor.', 'error');
+        showMsg('msg-email', 'Error al enviar el correo. Intenta de nuevo.', 'error');
+        console.error(err);
     });
 }
 
-// Enter en campo email
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-email').addEventListener('keydown', e => {
         if (e.key === 'Enter') sendOTP();
@@ -79,10 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function otpInput(i) {
     const val = document.getElementById(`d${i}`).value;
-    // Solo permitir números
     document.getElementById(`d${i}`).value = val.replace(/\D/, '');
     if (val && i < 5) document.getElementById(`d${i + 1}`).focus();
-    // Limpiar error al escribir
     document.getElementById('err-otp').classList.remove('show');
     document.querySelectorAll('.otp-digit').forEach(d => d.classList.remove('error-input'));
 }
@@ -109,7 +109,6 @@ function verifyOTP() {
     const code = getOTPCode();
     const errEl = document.getElementById('err-otp');
 
-    // Validación: código debe tener exactamente 6 dígitos
     if (code.length < 6 || !/^\d{6}$/.test(code)) {
         document.querySelectorAll('.otp-digit').forEach(d => d.classList.add('error-input'));
         errEl.classList.add('show');
@@ -169,18 +168,23 @@ function resendOTP(e) {
     e.preventDefault();
     hideMsg('msg-otp');
 
-    fetch(`${API}/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentEmail })
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    emailjs.send("service_jhgvl44", "template_xj53fxo", {
+        to_email: currentEmail,
+        otp_code: code
+    }, "smsrAsxMqq3bNDSAJ")
+    .then(() => {
+        return fetch(`${API}/auth/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: currentEmail, code })
+        });
     })
-    .then(r => r.json().then(data => ({ ok: r.ok, data })))
-    .then(({ ok }) => {
-        if (ok) {
-            clearOTPFields();
-            startCountdown();
-            showMsg('msg-otp', 'Código reenviado correctamente.', 'success');
-        }
+    .then(() => {
+        clearOTPFields();
+        startCountdown();
+        showMsg('msg-otp', 'Código reenviado correctamente.', 'success');
     });
 }
 
